@@ -17,11 +17,17 @@ export class NetworkClient {
   }
   
   public async queueForMatch(mode: "team" | "ffa", tankType: string, username: string) {
-    return await this.matchmaker.queueForMatch({ mode, tankType, username });
+    if (!this.matchmakerConn) {
+      this.matchmakerConn = this.matchmaker.connect();
+    }
+    return await this.matchmakerConn.queueForMatch({ mode, tankType, username });
   }
   
   public async getAssignment(playerId: string) {
-    return await this.matchmaker.getAssignment({ playerId });
+    if (!this.matchmakerConn) {
+      this.matchmakerConn = this.matchmaker.connect();
+    }
+    return await this.matchmakerConn.getAssignment({ playerId });
   }
   
   public listenToMatchmaker(event: string, callback: (data: any) => void) {

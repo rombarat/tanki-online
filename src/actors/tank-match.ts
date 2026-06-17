@@ -201,13 +201,13 @@ export const tankMatch = actor({
 			found.connId = null;
 		}
 
-		// Terminate match if all players are disconnected for a while
+		// Terminate match if all players are disconnected
 		const activeCount = Object.values(c.state.players).filter(
 			(p) => p.connId !== null,
 		).length;
-		if (activeCount === 0 && c.state.phase === "live") {
-			// Schedule termination
+		if (activeCount === 0) {
 			c.state.phase = "finished";
+			c.destroy();
 		}
 	},
 	onDestroy: async (c) => {
@@ -217,6 +217,46 @@ export const tankMatch = actor({
 			.send("matchCompleted", { matchId: c.state.matchId });
 	},
 	actions: {
+		joinPlayer: (c, input: { playerId: string; teamId: "red" | "blue" | "ffa"; tankType: "scout" | "titan" | "destroyer" | "medic"; username: string }) => {
+			const stats = TANK_STATS[input.tankType];
+			let x = 0, z = 0;
+			if (input.teamId === "red") {
+				x = -80 + Math.random() * 20;
+				z = -80 + Math.random() * 20;
+			} else if (input.teamId === "blue") {
+				x = 80 - Math.random() * 20;
+				z = 80 - Math.random() * 20;
+			} else {
+				x = -60 + Math.random() * 120;
+				z = -60 + Math.random() * 120;
+			}
+
+			c.state.players[input.playerId] = {
+				connId: null,
+				teamId: input.teamId,
+				tankType: input.tankType,
+				username: input.username,
+				x,
+				y: 0,
+				z,
+				rotationY: 0,
+				turretRotationY: 0,
+				hp: stats.hp,
+				maxHp: stats.hp,
+				alive: true,
+				score: 0,
+				abilityActiveUntil: 0,
+				abilityCooldown: 0,
+				lastTeamSwitch: 0,
+				lastPositionAt: Date.now(),
+				respawnAt: 0,
+				lastFiredAt: 0,
+			};
+			c.broadcast("snapshot", c.state);
+		},
+		destroyMatch: (c) => {
+			c.destroy();
+		},
 		move: (c, input: { x: number; y: number; z: number; rotationY: number; turretRotationY: number }) => {
 			const playerId = getPlayerIdByConn(c);
 			const player = c.state.players[playerId];
@@ -391,10 +431,23 @@ export const tankMatch = actor({
 		},
 	},
 	run: async (c) => {
+		const createTime = Date.now();
 		const tickInterval = setInterval(() => {
 			try {
 				if (c.state.phase === "live") {
 					updatePhysics(c);
+				} else if (c.state.phase === "waiting") {
+					// Clean up if no one connects for 15 seconds
+					if (Date.now() - createTime > 15000) {
+						const activeCount = Object.values(c.state.players).filter(
+							(p) => p.connId !== null,
+						).length;
+						if (activeCount === 0) {
+							c.state.phase = "finished";
+							c.destroy();
+							return;
+						}
+					}
 				}
 				c.broadcast("snapshot", c.state);
 			} catch (err) {
@@ -577,6 +630,7 @@ function checkWinCondition(c: ActorContextOf<typeof tankMatch>, teamId: "red" | 
 				winnerPlayerId: killerId,
 				winnerUsername: c.state.winnerUsername,
 			});
+			c.schedule.after(10000, "destroyMatch");
 		}
 	} else {
 		// FFA win check
@@ -592,6 +646,7 @@ function checkWinCondition(c: ActorContextOf<typeof tankMatch>, teamId: "red" | 
 				winnerPlayerId: killerId,
 				winnerUsername: c.state.winnerUsername,
 			});
+			c.schedule.after(10000, "destroyMatch");
 		}
 	}
 }

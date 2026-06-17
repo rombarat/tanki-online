@@ -40,12 +40,13 @@ export const tankMatchmaker = actor({
 		queueUpdate: event<{ counts: Record<string, number> }>(),
 	},
 	actions: {
-		queueForMatch: async (c, { mode, tankType, username }: { mode: Mode; tankType: string; username: string }) => {
+		queueForMatch: async (c, { mode, tankType, username }: { mode: Mode; tankType: string; username: string }): Promise<{ playerId: string }> => {
 			const playerId = crypto.randomUUID();
+			const connId = c.conn ? c.conn.id : null;
 			await c.queue.send("queueForMatch", {
 				mode,
 				playerId,
-				connId: c.conn.id,
+				connId,
 				tankType,
 				username,
 			});
@@ -62,6 +63,7 @@ export const tankMatchmaker = actor({
 			return counts;
 		},
 		getAssignment: async (c, { playerId }: { playerId: string }) => {
+			const connId = c.conn ? c.conn.id : null;
 			const rows = await c.db.execute<{
 				match_id: string;
 				player_id: string;
@@ -69,9 +71,9 @@ export const tankMatchmaker = actor({
 				mode: string;
 				conn_id: string | null;
 			}>(
-				`SELECT * FROM assignments WHERE player_id = ? AND conn_id = ?`,
+				`SELECT * FROM assignments WHERE player_id = ? AND (conn_id = ? OR conn_id IS NULL)`,
 				playerId,
-				c.conn.id,
+				connId,
 			);
 			if (rows.length === 0) return null;
 			const row = rows[0]!;
@@ -139,115 +141,114 @@ async function processQueueEntry(
 	c: ActorContextOf<typeof tankMatchmaker>,
 	mode: Mode,
 	playerId: string,
-	connId: string,
+	connId: string | null,
 	tankType: string,
 	username: string,
 ): Promise<void> {
 	const config = MODE_CONFIG[mode];
 
+	// Find an existing match with space
+	const rows = await c.db.execute<{ match_id: string; capacity: number; current_count: number }>(`
+		SELECT m.match_id, m.capacity, COUNT(a.player_id) as current_count
+		FROM matches m
+		LEFT JOIN assignments a ON m.match_id = a.match_id
+		WHERE m.mode = ?
+		GROUP BY m.match_id
+		HAVING current_count < m.capacity
+		ORDER BY m.created_at ASC
+		LIMIT 1
+	`, mode);
+
+	let matchId: string;
+	let teamId: "red" | "blue" | "ffa" = "ffa";
+
+	const client = c.client<typeof registry>();
+
+	if (rows.length > 0) {
+		// Found existing match with space!
+		const matchRow = rows[0]!;
+		matchId = matchRow.match_id;
+
+		if (mode === "team") {
+			// Balance teams: count players in red vs blue for this match
+			const teamCounts = await c.db.execute<{ team_id: string; cnt: number }>(`
+				SELECT team_id, COUNT(*) as cnt 
+				FROM assignments 
+				WHERE match_id = ? 
+				GROUP BY team_id
+			`, matchId);
+
+			let redCount = 0;
+			let blueCount = 0;
+			for (const tc of teamCounts) {
+				if (tc.team_id === "red") redCount = tc.cnt;
+				if (tc.team_id === "blue") blueCount = tc.cnt;
+			}
+			teamId = redCount <= blueCount ? "red" : "blue";
+		}
+
+		// Connect to the match and add the player
+		const matchActor = client.tankMatch.getOrCreate([matchId]);
+		await matchActor.joinPlayer({
+			playerId,
+			teamId,
+			tankType: tankType as any,
+			username,
+		});
+
+		console.log(`Player ${username} (${playerId}) joined existing match ${matchId}`);
+	} else {
+		// Create new match!
+		matchId = crypto.randomUUID();
+		if (mode === "team") {
+			teamId = "red";
+		}
+
+		await client.tankMatch.create([matchId], {
+			input: {
+				matchId,
+				mode,
+				capacity: config.capacity,
+				assignedPlayers: [
+					{
+						playerId,
+						teamId,
+						tankType: tankType as any,
+						username,
+					}
+				],
+			},
+		});
+
+		await c.db.execute(
+			`INSERT INTO matches (match_id, mode, capacity, created_at) VALUES (?, ?, ?, ?)`,
+			matchId,
+			mode,
+			config.capacity,
+			Date.now(),
+		);
+
+		console.log(`Created new match ${matchId} for player ${username}`);
+	}
+
+	// Insert assignment (exactly 5 parameters)
 	await c.db.execute(
-		`INSERT OR REPLACE INTO player_pool (player_id, mode, tank_type, username, queued_at, conn_id) VALUES (?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO assignments (player_id, match_id, team_id, mode, conn_id) VALUES (?, ?, ?, ?, ?)`,
 		playerId,
+		matchId,
+		teamId,
 		mode,
-		tankType,
-		username,
-		Date.now(),
 		connId,
 	);
 
-	await broadcastQueueSizes(c);
-
-	const countRows = await c.db.execute<{ cnt: number }>(
-		`SELECT COUNT(*) as cnt FROM player_pool WHERE mode = ?`,
-		mode,
-	);
-	const count = countRows[0]?.cnt ?? 0;
-
-	if (count >= config.capacity) {
-		await fillMatch(c, mode, config);
-	}
-}
-
-async function fillMatch(
-	c: ActorContextOf<typeof tankMatchmaker>,
-	mode: Mode,
-	config: { capacity: number; teams: ("red" | "blue" | "ffa")[] },
-) {
-	const queued = await c.db.execute<QueuePlayerRow>(
-		`SELECT player_id, conn_id, tank_type, username FROM player_pool WHERE mode = ? ORDER BY queued_at ASC LIMIT ?`,
-		mode,
-		config.capacity,
-	);
-
-	const queuedPlayers = queued.map((r) => ({
-		playerId: r.player_id,
-		connId: r.conn_id,
-		tankType: r.tank_type,
-		username: r.username,
-	}));
-	const playerIds = queuedPlayers.map((r) => r.playerId);
-
-	for (const pid of playerIds) {
-		await c.db.execute(`DELETE FROM player_pool WHERE player_id = ?`, pid);
-	}
-
-	const matchId = crypto.randomUUID();
-	const assignedPlayers = queuedPlayers.map((queuedPlayer, idx) => {
-		let teamId: "red" | "blue" | "ffa" = "ffa";
-		if (mode === "team") {
-			teamId = idx % 2 === 0 ? "red" : "blue";
-		}
-		return {
-			playerId: queuedPlayer.playerId,
-			connId: queuedPlayer.connId,
-			teamId,
-			tankType: queuedPlayer.tankType,
-			username: queuedPlayer.username,
-		};
-	});
-
-	const client = c.client<typeof registry>();
-	await client.tankMatch.create([matchId], {
-		input: {
-			matchId,
-			mode,
-			capacity: config.capacity,
-			assignedPlayers: assignedPlayers.map((ap) => ({
-				playerId: ap.playerId,
-				teamId: ap.teamId,
-				tankType: ap.tankType,
-				username: ap.username,
-			})),
-		},
-	});
-
-	await c.db.execute(
-		`INSERT INTO matches (match_id, mode, capacity, created_at) VALUES (?, ?, ?, ?)`,
+	// Broadcast assignmentReady event
+	c.broadcast("assignmentReady", {
 		matchId,
+		playerId,
+		teamId,
 		mode,
-		config.capacity,
-		Date.now(),
-	);
-
-	await broadcastQueueSizes(c);
-
-	for (const ap of assignedPlayers) {
-		await c.db.execute(
-			`INSERT INTO assignments (player_id, match_id, team_id, mode, conn_id) VALUES (?, ?, ?, ?, ?, ?)`,
-			ap.playerId,
-			matchId,
-			ap.teamId,
-			mode,
-			ap.connId,
-		);
-		c.broadcast("assignmentReady", {
-			matchId,
-			playerId: ap.playerId,
-			teamId: ap.teamId,
-			mode,
-			connId: ap.connId,
-		} satisfies TankAssignment);
-	}
+		connId,
+	} satisfies TankAssignment);
 }
 
 async function migrateTables(dbHandle: RawAccess) {
