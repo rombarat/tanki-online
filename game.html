@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tank Arena | בקרב</title>
+  <link rel="stylesheet" href="/client/css/game.css">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Three.js Canvas -->
+  <canvas id="game-canvas"></canvas>
+
+  <!-- Damage flashing vignette -->
+  <div id="damage-vignette"></div>
+
+  <!-- SVG Crosshair -->
+  <div id="crosshair">
+    <svg width="40" height="40" viewBox="0 0 40 40">
+      <circle cx="20" cy="20" r="4" fill="#00ff7f" opacity="0.8"/>
+      <path d="M 20 2 L 20 12 M 20 28 L 20 38 M 2 20 L 12 20 M 28 20 L 38 20" stroke="#00ff7f" stroke-width="2" opacity="0.6"/>
+    </svg>
+  </div>
+
+  <!-- HUD Overlay -->
+  <div id="hud-container">
+    <!-- Top Bar: Scores & Phase -->
+    <div class="top-hud">
+      <!-- Team Scoreboard (TDM) -->
+      <div id="team-scores" class="glass-bar">
+        <div class="team-score red-score"><span class="team-label">RED</span> <span id="score-red">0</span></div>
+        <div class="match-time" id="match-timer">live</div>
+        <div class="team-score blue-score"><span id="score-blue">0</span> <span class="team-label">BLUE</span></div>
+      </div>
+      
+      <!-- FFA Top Score -->
+      <div id="ffa-scores" class="glass-bar" style="display: none;">
+        <span class="team-label">מוביל: </span><span id="ffa-leader-name">-</span> <span id="ffa-leader-score">0</span>
+      </div>
+    </div>
+
+    <!-- Right HUD: Minimap & Killfeed -->
+    <div class="right-hud">
+      <!-- Minimap -->
+      <div class="minimap-container glass-panel">
+        <canvas id="minimap-canvas" width="120" height="120"></canvas>
+      </div>
+
+      <!-- Killfeed -->
+      <div id="killfeed" class="killfeed-container"></div>
+    </div>
+
+    <!-- Bottom HUD: HP, Ability & Ammo -->
+    <div class="bottom-hud">
+      <!-- Health Bar -->
+      <div class="hp-container glass-panel">
+        <div class="hp-info">
+          <span id="player-name-tag">שחקן</span>
+          <span id="hp-text">100 / 100</span>
+        </div>
+        <div class="hp-bar-bg">
+          <div id="hp-bar-fill" class="hp-bar-fill"></div>
+        </div>
+      </div>
+
+      <!-- Ability Cooldown Card -->
+      <div class="ability-card glass-panel" id="ability-ui">
+        <div class="ability-icon" id="ability-icon">🏎️</div>
+        <div class="ability-details">
+          <span class="ability-key">E</span>
+          <span id="ability-name" class="ability-name">דאש</span>
+        </div>
+        <div class="ability-cooldown-overlay" id="ability-cooldown-overlay">
+          <span id="ability-cooldown-text">10</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scoreboard (Tab Overlay) -->
+  <div id="scoreboard-overlay" style="display: none;">
+    <div class="scoreboard-content glass-panel">
+      <h2>לוח תוצאות - <span id="sb-game-mode">TDM</span></h2>
+      <table class="scoreboard-table">
+        <thead>
+          <tr>
+            <th>שחקן</th>
+            <th>קבוצה</th>
+            <th>טנק</th>
+            <th>הריגות</th>
+          </tr>
+        </thead>
+        <tbody id="scoreboard-body">
+          <!-- Rows added dynamically -->
+        </tbody>
+      </table>
+      <div class="scoreboard-help">לחץ <kbd>T</kbd> להחלפת קבוצה (30 שניות cooldown) | לחץ <kbd>E</kbd> ליכולת מיוחדת</div>
+    </div>
+  </div>
+
+  <!-- Game Over Screen -->
+  <div id="game-over-overlay" style="display: none;">
+    <div class="game-over-content glass-panel">
+      <h1 id="win-title">המשחק הסתיים!</h1>
+      <p id="win-subtitle">המנצח הגדול: שחקן</p>
+      <button class="btn-lobby" id="btn-back-lobby">חזרה ללובי</button>
+    </div>
+  </div>
+
+  <script type="module" src="/client/game.ts"></script>
+</body>
+</html>

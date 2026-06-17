@@ -1,0 +1,26 @@
+{
+  "name": "tank-arena",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k -p \"[{name}]\" -n \"server,client\" -c \"yellow,blue\" \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "tsx --watch src/index.ts",
+    "dev:client": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "rivetkit": "2.3.0-rc.12",
+    "three": "^0.170.0",
+    "cannon-es": "^0.20.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/three": "^0.170.0",
+    "typescript": "^5.7.0",
+    "tsx": "^4.19.0",
+    "vite": "^6.0.0",
+    "concurrently": "^9.0.0"
+  }
+}

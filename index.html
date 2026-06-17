@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tank Arena | זירת הטנקים</title>
+  <link rel="stylesheet" href="/client/css/main.css">
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Rubik:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="lobby-container">
+    <header class="lobby-header">
+      <h1 class="logo">TANK <span class="accent">ARENA</span></h1>
+      <p class="subtitle">קרבות טנקים מרובי משתתפים בתלת-ממד</p>
+    </header>
+
+    <div class="main-panel">
+      <!-- Left side: Player details & setup -->
+      <section class="setup-section glass-panel">
+        <h2>הגדרות שחקן</h2>
+        <div class="input-group">
+          <label for="username">שם משתמש</label>
+          <input type="text" id="username" placeholder="הכנס שם שחקן..." max="12" value="שחקן_טנק">
+        </div>
+
+        <div class="mode-select">
+          <label>מצב משחק</label>
+          <div class="mode-buttons">
+            <button class="btn-mode active" data-mode="team" id="mode-team">
+              <span class="mode-title">קרב קבוצות (TDM)</span>
+              <span class="mode-desc">אדומים נגד כחולים (4v4)</span>
+            </button>
+            <button class="btn-mode" data-mode="ffa" id="mode-ffa">
+              <span class="mode-title">חופשי לכולם (FFA)</span>
+              <span class="mode-desc">כל שחקן לעצמו (עד 8 שחקנים)</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="queue-status" id="queue-status-container">
+          <p id="queue-text">התחברות לשרת...</p>
+          <div class="queue-bar-container">
+            <div class="queue-bar" id="queue-bar"></div>
+          </div>
+        </div>
+
+        <button class="btn-play" id="btn-play" disabled>הצטרף לקרב!</button>
+      </section>
+
+      <!-- Right side: Tank choice -->
+      <section class="tank-select-section glass-panel">
+        <h2>בחר את הטנק שלך</h2>
+        <div class="tank-cards">
+          <!-- Scout -->
+          <div class="tank-card active" data-tank="scout">
+            <div class="tank-icon">🏎️</div>
+            <h3>Scout</h3>
+            <p class="desc">מהיר וזריז עם קצב ירי גבוה אך שריון נמוך.</p>
+            <div class="ability-info">
+              <strong>יכולת:</strong> דאש מהיר (2 שניות) עם 50% הגנת נזק.
+            </div>
+            <div class="stats-bars">
+              <div class="stat-row"><span class="stat-label">מהירות</span><div class="bar-bg"><div class="bar-fill" style="width: 100%;"></div></div></div>
+              <div class="stat-row"><span class="stat-label">חיים (HP)</span><div class="bar-bg"><div class="bar-fill" style="width: 40%;"></div></div></div>
+              <div class="stat-row"><span class="stat-label">נזק</span><div class="bar-bg"><div class="bar-fill" style="width: 33%;"></div></div></div>
+            </div>
+          </div>
+
+          <!-- Titan -->
+          <div class="tank-card" data-tank="titan">
+            <div class="tank-icon">🛡️</div>
+            <h3>Titan</h3>
+            <p class="desc">טנק כבד ואיטי עם כמות חיים עצומה וכוח אש כפול.</p>
+            <div class="ability-info">
+              <strong>יכולת:</strong> מגן אנרגיה (3 שניות) החוסם 100% מהנזק.
+            </div>
+            <div class="stats-bars">
+              <div class="stat-row"><span class="stat-label">מהירות</span><div class="bar-bg"><div class="bar-fill" style="width: 50%;"></div></div></div>
+              <div class="stat-row"><span class="stat-label">חיים (HP)</span><div class="bar-bg"><div class="bar-fill" style="width: 100%;"></div></div></div>
+              <div class="stat-row"><span class="stat-label">נזק</span><div class="bar-bg"><div class="bar-fill" style="width: 55%;"></div></div></div>
+            </div>
+          </div>
+
+          <!-- Destroyer -->
+          <div class="tank-card" data-tank="destroyer">
+            <div class="tank-icon">💥</div>
+            <h3>Destroyer</h3>
+            <p class="desc">משמיד הרסני בעל כוח אש אדיר וקצב ירי איטי.</p>
+            <div class="ability-info">
+              <strong>יכולת:</strong> יריית חדירה מיוחדת שעוברת דרך קירות.
+            </div>
+            <div class="stats-bars">
+              <div class="stat-row"><span class="stat-label">מהירות</span><div class="bar-bg"><div class="bar-fill" style="width: 66%;"></div></div></div>
+              <div class="stat-row"><span class="stat-label">חיים (HP)</span><div class="bar-bg"><div class="bar-fill" style="width: 60%;"></div></div></div>
+              <div class="stat-row"><span class="stat-label">נזק</span><div class="bar-bg"><div class="bar-fill" style="width: 100%;"></div></div></div>
+            </div>
+          </div>
+
+          <!-- Medic -->
+          <div class="tank-card" data-tank="medic">
+            <div class="tank-icon">🔧</div>
+            <h3>Medic</h3>
+            <p class="desc">טנק תמיכה מהיר המסוגל לרפא את עצמו ואת חבריו.</p>
+            <div class="ability-info">
+              <strong>יכולת:</strong> ריפוי אזורי (40 HP) לכל בעלי הברית בטווח.
+            </div>
+            <div class="stats-bars">
+              <div class="stat-row"><span class="stat-label">מהירות</span><div class="bar-bg"><div class="bar-fill" style="width: 83%;"></div></div></div>
+              <div class="stat-row"><span class="stat-label">חיים (HP)</span><div class="bar-bg"><div class="bar-fill" style="width: 50%;"></div></div></div>
+              <div class="stat-row"><span class="stat-label">נזק</span><div class="bar-bg"><div class="bar-fill" style="width: 27%;"></div></div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script type="module" src="/client/main.ts"></script>
+</body>
+</html>

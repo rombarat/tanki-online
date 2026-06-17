@@ -1,0 +1,441 @@
+:root {
+  --hud-panel-bg: rgba(15, 23, 20, 0.75);
+  --hud-panel-border: rgba(255, 255, 255, 0.08);
+  --accent-green: #00ff7f;
+  --accent-red: #ff3333;
+  --accent-blue: #3a82e8;
+  --accent-orange: #ff7722;
+  --text-primary: #f0f5f2;
+  --text-secondary: #a0b0a8;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Rubik', sans-serif;
+  user-select: none;
+}
+
+body, html {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #0b0d0c;
+}
+
+#game-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  z-index: 1;
+}
+
+/* Pointer events disabled for overlay so player can click through to the canvas */
+#hud-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 1.5rem;
+}
+
+/* Glass panel components */
+.glass-panel {
+  background: var(--hud-panel-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--hud-panel-border);
+  border-radius: 12px;
+  padding: 1rem;
+  pointer-events: auto;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+
+.glass-bar {
+  background: var(--hud-panel-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--hud-panel-border);
+  border-radius: 8px;
+  padding: 0.6rem 1.5rem;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+/* Crosshair overlay */
+#crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* Damage screen flash */
+#damage-vignette {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 6;
+  pointer-events: none;
+  box-shadow: inset 0 0 100px rgba(255, 0, 0, 0);
+  transition: box-shadow 0.1s ease;
+}
+
+#damage-vignette.hit {
+  box-shadow: inset 0 0 60px rgba(255, 0, 0, 0.8);
+  transition: none; /* instant red flash */
+}
+
+#damage-vignette.heal {
+  box-shadow: inset 0 0 60px rgba(0, 255, 127, 0.5);
+  transition: none; /* instant green flash */
+}
+
+/* Top HUD Score */
+.top-hud {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+#team-scores {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 1px;
+}
+
+.team-score {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.red-score {
+  color: var(--accent-red);
+}
+
+.blue-score {
+  color: var(--accent-blue);
+}
+
+.team-label {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.match-time {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  border-left: 1px solid rgba(255, 255, 255, 0.15);
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 0 1rem;
+}
+
+#ffa-scores {
+  color: #fff;
+  font-weight: 700;
+}
+
+/* Right HUD: Minimap & Killfeed */
+.right-hud {
+  position: absolute;
+  top: 1.5rem;
+  left: 1.5rem; /* RTL means left is secondary side, but UI usually has minimap top-left */
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Adjust map layout to ensure correct side placement */
+body[dir="rtl"] .right-hud {
+  left: auto;
+  right: 1.5rem;
+}
+
+.minimap-container {
+  width: 130px;
+  height: 130px;
+  padding: 4px;
+  border-radius: 10px;
+}
+
+#minimap-canvas {
+  width: 120px;
+  height: 120px;
+  background: rgba(0, 0, 0, 0.85);
+  border-radius: 8px;
+  display: block;
+}
+
+.killfeed-container {
+  max-width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  pointer-events: none;
+}
+
+.killfeed-item {
+  background: rgba(15, 23, 20, 0.8);
+  border-right: 3px solid var(--accent-orange);
+  border-radius: 4px;
+  padding: 0.4rem 0.8rem;
+  font-size: 0.78rem;
+  color: #fff;
+  animation: fade-in 0.3s ease-out;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.killfeed-item .attacker {
+  font-weight: 700;
+  color: #fff;
+}
+
+.killfeed-item.red-kill .attacker { color: var(--accent-red); }
+.killfeed-item.blue-kill .attacker { color: var(--accent-blue); }
+
+.killfeed-item .victim {
+  font-weight: 700;
+}
+.killfeed-item.red-kill .victim { color: var(--accent-blue); }
+.killfeed-item.blue-kill .victim { color: var(--accent-red); }
+
+/* Bottom HUD: Health & Ability */
+.bottom-hud {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.hp-container {
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.hp-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: #fff;
+  font-weight: 500;
+}
+
+.hp-bar-bg {
+  width: 100%;
+  height: 14px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 7px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.hp-bar-fill {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #00e676 0%, #00b0ff 100%);
+  border-radius: 7px;
+  transition: width 0.2s ease, background-color 0.3s ease;
+}
+
+/* Ability slot card */
+.ability-card {
+  width: 76px;
+  height: 76px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border-radius: 12px;
+}
+
+.ability-icon {
+  font-size: 1.8rem;
+  margin-bottom: 2px;
+}
+
+.ability-details {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.ability-key {
+  font-size: 0.65rem;
+  background: #333;
+  padding: 0 4px;
+  border-radius: 3px;
+  color: var(--text-secondary);
+  border: 1px solid #555;
+  font-family: monospace;
+}
+
+.ability-name {
+  font-size: 0.62rem;
+  color: var(--text-secondary);
+}
+
+.ability-cooldown-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(10, 15, 12, 0.85);
+  border-radius: 11px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--accent-orange);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.ability-card.cooldown .ability-cooldown-overlay {
+  opacity: 1;
+}
+
+/* Overlays: Scoreboard, Game Over */
+#scoreboard-overlay, #game-over-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(7, 10, 8, 0.6);
+  backdrop-filter: blur(6px);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.scoreboard-content {
+  width: 90%;
+  max-width: 650px;
+}
+
+.scoreboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+}
+
+.scoreboard-table th {
+  text-align: right;
+  padding: 0.8rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  border-bottom: 2px solid #20322a;
+}
+
+.scoreboard-table td {
+  padding: 0.8rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font-size: 0.95rem;
+}
+
+.scoreboard-table tr.red-team td {
+  color: #ffa8a8;
+}
+.scoreboard-table tr.blue-team td {
+  color: #acc6ff;
+}
+
+.scoreboard-table tr.self-row td {
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 700;
+}
+
+.scoreboard-help {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+kbd {
+  background: #222;
+  border: 1px solid #444;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: monospace;
+}
+
+/* Game Over Card */
+.game-over-content {
+  text-align: center;
+  max-width: 450px;
+  width: 90%;
+  padding: 3rem 2rem;
+  animation: scale-up 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes scale-up {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: scale(1.0); opacity: 1; }
+}
+
+#win-title {
+  font-size: 2.2rem;
+  color: #fff;
+  margin-bottom: 0.5rem;
+}
+
+#win-subtitle {
+  color: var(--accent-orange);
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+}
+
+.btn-lobby {
+  background: linear-gradient(135deg, var(--accent-orange) 0%, #d85510 100%);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.8rem 2rem;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px var(--accent-orange-glow);
+  transition: all 0.3s ease;
+  pointer-events: auto;
+}
+
+.btn-lobby:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(255, 119, 34, 0.5);
+  filter: brightness(1.1);
+}
