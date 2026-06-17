@@ -9,7 +9,7 @@ export class NetworkClient {
   constructor() {
     const endpoint = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
       ? "http://127.0.0.1:6420"
-      : window.location.origin;
+      : "https://tankionline-4gud-production-6rul:pk_eaT3ScS0XELMwKVHLoPS3GgOm0PnUSCFP8QbryFtjV4EjBEcC8Hd9j35eSldnWbz@api.rivet.dev";
       
     this.client = createClient<typeof registry>({ endpoint });
     this.matchmaker = this.client.tankMatchmaker.getOrCreate(["main"]);
