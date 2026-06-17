@@ -5,6 +5,7 @@ export class NetworkClient {
   private client: any;
   private matchConn: any = null;
   private matchmaker: any;
+  private matchmakerConn: any = null;
   
   constructor() {
     const endpoint = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1"
@@ -24,8 +25,10 @@ export class NetworkClient {
   }
   
   public listenToMatchmaker(event: string, callback: (data: any) => void) {
-    this.matchmaker.connect();
-    this.matchmaker.on(event, callback);
+    if (!this.matchmakerConn) {
+      this.matchmakerConn = this.matchmaker.connect();
+    }
+    this.matchmakerConn.on(event, callback);
   }
   
   public connectToMatch(matchId: string, playerId: string) {
