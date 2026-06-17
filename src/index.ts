@@ -28,4 +28,12 @@ export const registry = setup({
   use: { tankMatchmaker, tankMatch },
 });
 
-registry.start();
+const port = process.env.PORT ? parseInt(process.env.PORT) : 6420;
+
+if (process.env.PORT) {
+  console.log(`Starting serverless HTTP server on port ${port}`);
+  registry.listen({ port });
+} else {
+  console.log(`Starting local server on port ${port}`);
+  registry.start();
+}
