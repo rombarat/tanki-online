@@ -7,11 +7,11 @@ export interface ModeConfigEntry {
 
 export const MODE_CONFIG: Record<Mode, ModeConfigEntry> = {
   team: {
-    capacity: 8,
+    capacity: 2,
     teams: ["red", "blue"],
   },
   ffa: {
-    capacity: 8,
+    capacity: 1,
     teams: ["ffa"],
   },
 };
