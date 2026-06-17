@@ -30,10 +30,9 @@ export const registry = setup({
 
 const port = process.env.PORT ? parseInt(process.env.PORT) : 6420;
 
-if (process.env.PORT) {
-  console.log(`Starting serverless HTTP server on port ${port}`);
-  registry.listen({ port });
-} else {
-  console.log(`Starting local server on port ${port}`);
-  registry.start();
-}
+// Always start an HTTP listener so the client can reach the actors.
+// `registry.start()` prints a banner but does NOT bind a port, which left
+// the matchmaker unreachable in local dev (the client hung on connect).
+console.log(`Starting HTTP server on port ${port}`);
+// Trigger rebuild
+registry.listen({ port });
