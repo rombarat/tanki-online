@@ -30,9 +30,17 @@ export const registry = setup({
 
 const port = process.env.PORT ? parseInt(process.env.PORT) : 6420;
 
-// Always start an HTTP listener so the client can reach the actors.
-// `registry.start()` prints a banner but does NOT bind a port, which left
-// the matchmaker unreachable in local dev (the client hung on connect).
-console.log(`Starting HTTP server on port ${port}`);
-// Trigger rebuild
-registry.listen({ port });
+if (process.env.PORT) {
+  // Production (Rivet Compute): run as a serverless actor pool that registers
+  // with the managed engine. The platform sets PORT and provides the engine.
+  console.log(`Starting serverless HTTP server on port ${port}`);
+  registry.listen({ port });
+} else {
+  // Local dev: boot the embedded Rivet engine (listens on 6420) together with
+  // the serverful actor envoy. Without the engine, the client has nothing to
+  // connect to on 6420, so matchmaking hangs and the player is stuck on a
+  // blank arena. `RIVET_RUN_ENGINE=1` is what enables the local engine.
+  process.env.RIVET_RUN_ENGINE = "1";
+  console.log(`Starting local engine + actor server on port ${port}`);
+  registry.start();
+}
